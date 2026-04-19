@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build APK
 
 on:
   workflow_dispatch:
@@ -8,35 +8,34 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # FIX 1: correct Python version
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      # Java required for Android build
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      # Install dependencies
-      - name: Install system packages
+      - name: Install system deps
         run: |
           sudo apt update
-          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip
+          sudo apt install -y git zip unzip wget openjdk-17-jdk python3-pip
 
       - name: Install Python tools
         run: |
           pip install --upgrade pip
           pip install buildozer cython
 
-      # Android SDK setup
-      - name: Install Android SDK Command Line Tools
+      # =========================
+      # ANDROID SDK FIX (IMPORTANT)
+      # =========================
+      - name: Setup Android SDK correctly
         run: |
           mkdir -p $HOME/android-sdk/cmdline-tools
           cd $HOME/android-sdk
@@ -44,30 +43,25 @@ jobs:
           wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
           unzip tools.zip
 
-          # FIX 2: correct folder structure (IMPORTANT)
-          mv cmdline-tools cmdline-tools-temp
+          # FIX STRUCTURE (CRITICAL)
           mkdir -p cmdline-tools/latest
-          mv cmdline-tools-temp/* cmdline-tools/latest/
-
-          rm tools.zip
+          mv cmdline-tools/* cmdline-tools/latest/ || true
+          rm -rf tools.zip
 
           echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
           echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
           echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
 
-      # FIX 3: accept ALL licenses automatically
-      - name: Accept Android licenses
+      - name: Accept licenses (MUST BE BEFORE INSTALL)
         run: |
           yes | sdkmanager --licenses
 
-      # FIX 4: install stable build-tools (NOT 37)
-      - name: Install Android packages
+      - name: Install Android build tools
         run: |
           sdkmanager "platform-tools" \
                      "platforms;android-34" \
                      "build-tools;34.0.0"
 
-      # Build APK
       - name: Build APK
         run: |
           buildozer android debug
