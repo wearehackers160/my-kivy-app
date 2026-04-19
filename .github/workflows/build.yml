@@ -31,7 +31,6 @@ jobs:
           automake \
           libtool \
           libtool-bin \
-          libtool-m4 \
           pkg-config \
           cmake \
           libffi-dev \
