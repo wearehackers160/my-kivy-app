@@ -31,6 +31,7 @@ jobs:
           automake \
           libtool \
           libtool-bin \
+          libtool-m4 \
           pkg-config \
           cmake \
           libffi-dev \
@@ -63,8 +64,9 @@ jobs:
         automake --version | head -n 1
         libtoolize --version | head -n 1
         
-        # Pre-generate m4 cache to avoid issues
-        aclocal --version
+        # Regenerate autotools cache with proper aclocal search path
+        aclocal -I /usr/share/aclocal
+        libtoolize --install --force --verbose || true
 
     # =========================
     # 5. FORCE CLEAN BUILD CACHE
@@ -91,6 +93,7 @@ jobs:
         export LDFLAGS="-L/usr/lib/x86_64-linux-gnu"
         export CPPFLAGS="-I/usr/include"
         export LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+        export M4="/usr/bin/m4"
         
         buildozer -v android debug
 
