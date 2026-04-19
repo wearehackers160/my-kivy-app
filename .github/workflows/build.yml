@@ -12,13 +12,13 @@ jobs:
     # =========================
     # 1. GET CODE
     # =========================
-    - name: Checkout repository
+    - name: Checkout code
       uses: actions/checkout@v4
 
     # =========================
     # 2. SYSTEM DEPENDENCIES
     # =========================
-    - name: Install system packages
+    - name: Install system dependencies
       run: |
         sudo apt update
         sudo apt install -y \
@@ -30,46 +30,64 @@ jobs:
           libtool \
           pkg-config
 
-        pip install --upgrade pip
-        pip install buildozer cython virtualenv
+        python3 -m pip install --upgrade pip
+        pip install buildozer cython
 
     # =========================
-    # 3. ANDROID LICENSE FIX (CRITICAL)
+    # 3. ANDROID SDK PREP FIX
     # =========================
-    - name: Fix Android SDK licenses
+    - name: Prepare Android environment
       run: |
         mkdir -p $HOME/.android
         touch $HOME/.android/repositories.cfg
 
-        # force accept all licenses
-        yes | sdkmanager --licenses || true
-
     # =========================
-    # 4. CLEAN BUILD ENV
+    # 4. FORCE BUILD FIRST (Buildozer handles SDK)
     # =========================
-    - name: Clean build cache
+    - name: Build APK (first attempt - triggers SDK install)
+      continue-on-error: true
       run: |
-        rm -rf .buildozer
+        yes | buildozer android update
 
     # =========================
-    # 5. FORCE BUILD
+    # 5. FORCE LICENSE ACCEPT + FIX AIDL
     # =========================
-    - name: Build APK
+    - name: Fix Android SDK licenses
+      run: |
+        SDK=$HOME/.buildozer/android/platform/android-sdk
+
+        # wait until sdk exists
+        ls -R $SDK || true
+
+        # accept licenses if sdkmanager exists
+        if [ -f "$SDK/cmdline-tools/latest/bin/sdkmanager" ]; then
+          yes | $SDK/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          $SDK/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" \
+            "build-tools;33.0.2" \
+            "platforms;android-33" || true
+        fi
+
+    # =========================
+    # 6. FINAL BUILD (REAL)
+    # =========================
+    - name: Build APK (final)
       run: |
         buildozer -v android debug
 
     # =========================
-    # 6. FIND APK
+    # 7. FIND APK
     # =========================
     - name: Locate APK
       run: |
-        find . -name "*.apk"
+        find . -name "*.apk" || true
 
     # =========================
-    # 7. UPLOAD APK
+    # 8. UPLOAD APK
     # =========================
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: apk
         path: "**/*.apk"
+        
