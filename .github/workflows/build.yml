@@ -9,38 +9,62 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    # -------------------------
+    # GET CODE
+    # -------------------------
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install system dependencies (FIXED)
+    # -------------------------
+    # SYSTEM DEPENDENCIES (FIX LIBFFI / AUTOTOOLS)
+    # -------------------------
+    - name: Install system dependencies
       run: |
         sudo apt update
         sudo apt install -y \
-          python3-pip \
-          git \
-          zip \
-          unzip \
+          git zip unzip \
           openjdk-17-jdk \
+          python3-pip \
           build-essential \
-          autoconf \
-          automake \
-          libtool \
-          libtool-bin \
-          m4 \
-          pkg-config \
-          cmake
+          autoconf automake libtool libtool-bin m4 pkg-config cmake
 
-    - name: Upgrade pip + install buildozer
+    # -------------------------
+    # PYTHON + BUILDOZER
+    # -------------------------
+    - name: Install Buildozer
       run: |
         python3 -m pip install --upgrade pip
         pip install cython==0.29.36 buildozer
 
-    - name: PRE-FIX Android SDK environment
+    # -------------------------
+    # ANDROID SDK (REAL FIX FOR AIDL + BUILD-TOOLS)
+    # -------------------------
+    - name: Install Android SDK + Build Tools
       run: |
-        mkdir -p $HOME/.android
-        touch $HOME/.android/repositories.cfg
+        mkdir -p $HOME/.buildozer/android/platform/android-sdk
+        cd $HOME/.buildozer/android/platform/android-sdk
 
-    - name: Cache Buildozer (IMPORTANT)
+        # Download official command line tools
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        unzip -q commandlinetools-linux-11076708_latest.zip
+
+        mkdir -p cmdline-tools/latest
+        mv cmdline-tools/* cmdline-tools/latest/
+
+        export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
+        export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
+
+        yes | sdkmanager --licenses || true
+
+        sdkmanager \
+          "platform-tools" \
+          "platforms;android-31" \
+          "build-tools;31.0.0"
+
+    # -------------------------
+    # CACHE (FASTER BUILDS)
+    # -------------------------
+    - name: Cache Buildozer
       uses: actions/cache@v4
       with:
         path: |
@@ -48,13 +72,22 @@ jobs:
           ~/.local/share/python-for-android
         key: buildozer-${{ runner.os }}
 
+    # -------------------------
+    # BUILD APK
+    # -------------------------
     - name: Build APK
       run: |
         buildozer -v android debug
 
+    # -------------------------
+    # FIND APK
+    # -------------------------
     - name: Find APK
       run: find . -name "*.apk"
 
+    # -------------------------
+    # UPLOAD APK
+    # -------------------------
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
