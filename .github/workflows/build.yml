@@ -9,85 +9,64 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # -------------------------
-    # GET CODE
-    # -------------------------
+    # =========================
+    # 1. GET CODE
+    # =========================
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # -------------------------
-    # SYSTEM DEPENDENCIES (FIX LIBFFI / AUTOTOOLS)
-    # -------------------------
+    # =========================
+    # 2. SYSTEM DEPENDENCIES
+    # =========================
     - name: Install system dependencies
       run: |
         sudo apt update
         sudo apt install -y \
-          git zip unzip \
-          openjdk-17-jdk \
           python3-pip \
+          git \
+          zip \
+          unzip \
+          openjdk-17-jdk \
           build-essential \
-          autoconf automake libtool libtool-bin m4 pkg-config cmake
+          autoconf \
+          libtool \
+          pkg-config
 
-    # -------------------------
-    # PYTHON + BUILDOZER
-    # -------------------------
-    - name: Install Buildozer
-      run: |
         python3 -m pip install --upgrade pip
-        pip install cython==0.29.36 buildozer
+        pip install buildozer cython virtualenv
 
-    # -------------------------
-    # ANDROID SDK (REAL FIX FOR AIDL + BUILD-TOOLS)
-    # -------------------------
-    - name: Install Android SDK + Build Tools
+    # =========================
+    # 3. FIX ANDROID ENV (SAFE ONLY)
+    # =========================
+    - name: Android environment fix
       run: |
-        mkdir -p $HOME/.buildozer/android/platform/android-sdk
-        cd $HOME/.buildozer/android/platform/android-sdk
+        mkdir -p $HOME/.android
+        touch $HOME/.android/repositories.cfg
 
-        # Download official command line tools
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-        unzip -q commandlinetools-linux-11076708_latest.zip
+    # =========================
+    # 4. CLEAN OLD BUILD CACHE (IMPORTANT)
+    # =========================
+    - name: Clean Buildozer cache
+      run: |
+        rm -rf .buildozer
 
-        mkdir -p cmdline-tools/latest
-        mv cmdline-tools/* cmdline-tools/latest/
-
-        export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
-        export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
-
-        yes | sdkmanager --licenses || true
-
-        sdkmanager \
-          "platform-tools" \
-          "platforms;android-31" \
-          "build-tools;31.0.0"
-
-    # -------------------------
-    # CACHE (FASTER BUILDS)
-    # -------------------------
-    - name: Cache Buildozer
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.buildozer
-          ~/.local/share/python-for-android
-        key: buildozer-${{ runner.os }}
-
-    # -------------------------
-    # BUILD APK
-    # -------------------------
+    # =========================
+    # 5. BUILD APK
+    # =========================
     - name: Build APK
       run: |
         buildozer -v android debug
 
-    # -------------------------
-    # FIND APK
-    # -------------------------
+    # =========================
+    # 6. FIND APK
+    # =========================
     - name: Find APK
-      run: find . -name "*.apk"
+      run: |
+        find . -name "*.apk"
 
-    # -------------------------
-    # UPLOAD APK
-    # -------------------------
+    # =========================
+    # 7. UPLOAD APK
+    # =========================
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
