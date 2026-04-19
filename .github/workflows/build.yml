@@ -13,7 +13,7 @@ jobs:
       uses: actions/checkout@v4
 
     # =========================
-    # SYSTEM DEPENDENCIES (FIXED)
+    # SYSTEM DEPENDENCIES
     # =========================
     - name: Install dependencies
       run: |
@@ -23,37 +23,63 @@ jobs:
           openjdk-17-jdk \
           python3-pip \
           build-essential \
-          autoconf \
-          automake \
-          libtool \
-          pkg-config \
-          cmake \
-          libffi-dev \
-          libssl-dev
+          autoconf automake libtool \
+          pkg-config
 
-        python3 -m pip install --upgrade pip
-        pip install cython==0.29.36
-        pip install buildozer==1.5.0
+        pip install --upgrade pip
+        pip install cython==0.29.36 buildozer==1.5.0
 
     # =========================
-    # FIX ANDROID ENV (NO MANUAL SDK)
+    # FORCE ANDROID LICENSE ACCEPT
     # =========================
-    - name: Setup Buildozer folders
+    - name: Install Android SDK tools
       run: |
         mkdir -p $HOME/.android
         touch $HOME/.android/repositories.cfg
-        mkdir -p $HOME/.buildozer
+
+        mkdir -p $HOME/android-sdk/cmdline-tools
+        cd $HOME/android-sdk/cmdline-tools
+
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        unzip -q commandlinetools-linux-11076708_latest.zip
+        rm commandlinetools-linux-11076708_latest.zip
+
+        mv cmdline-tools latest || true
+
+        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
 
     # =========================
-    # CACHE (SPEED + STABILITY)
+    # ACCEPT LICENSES (IMPORTANT FIX)
     # =========================
-    - name: Cache Buildozer
+    - name: Accept Android licenses + install build-tools
+      run: |
+        yes | sdkmanager --licenses || true
+
+        sdkmanager \
+          "platform-tools" \
+          "platforms;android-33" \
+          "build-tools;33.0.2"
+
+    # =========================
+    # BUILD FOLDER FIX
+    # =========================
+    - name: Prepare Buildozer environment
+      run: |
+        mkdir -p ~/.buildozer
+        mkdir -p ~/.android
+        touch ~/.android/repositories.cfg
+
+    # =========================
+    # CACHE
+    # =========================
+    - name: Cache build
       uses: actions/cache@v4
       with:
         path: |
           ~/.buildozer
           ~/.gradle
-        key: buildozer-${{ runner.os }}
+        key: build-${{ runner.os }}
 
     # =========================
     # BUILD APK
