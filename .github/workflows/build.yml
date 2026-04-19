@@ -16,31 +16,33 @@ jobs:
       uses: actions/checkout@v4
 
     # =========================
-    # 2. SYSTEM FIX PACKAGES (IMPORTANT)
+    # 2. INSTALL ALL SYSTEM DEPENDENCIES
     # =========================
     - name: Install dependencies
       run: |
         sudo apt update
-
         sudo apt install -y \
           git zip unzip \
           openjdk-17-jdk \
           python3-pip \
+          python3-dev \
           build-essential \
           autoconf \
           automake \
           libtool \
+          libtool-bin \
           pkg-config \
           cmake \
           libffi-dev \
           libssl-dev \
-          zlib1g-dev
+          zlib1g-dev \
+          m4
 
-        pip install --upgrade pip
+        pip install --upgrade pip setuptools wheel
         pip install cython buildozer
 
     # =========================
-    # 3. ANDROID ENV FIX
+    # 3. SETUP ANDROID ENVIRONMENT
     # =========================
     - name: Setup Android environment
       run: |
@@ -48,52 +50,65 @@ jobs:
         touch $HOME/.android/repositories.cfg
 
     # =========================
-    # 4. FORCE CLEAN BUILD CACHE (IMPORTANT FIX)
+    # 4. INITIALIZE AUTOTOOLS (CRITICAL FIX)
+    # =========================
+    - name: Initialize autotools and set paths
+      run: |
+        export ACLOCAL_PATH="/usr/share/aclocal:$ACLOCAL_PATH"
+        export LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+        
+        # Verify tools are installed
+        which autoconf automake libtoolize aclocal m4
+        autoconf --version | head -n 1
+        automake --version | head -n 1
+        libtoolize --version | head -n 1
+        
+        # Pre-generate m4 cache to avoid issues
+        aclocal --version
+
+    # =========================
+    # 5. FORCE CLEAN BUILD CACHE
     # =========================
     - name: Clean Buildozer cache
       run: |
-        rm -rf .buildozer || true
+        rm -rf .buildozer .buildozer/ || true
+        rm -rf ~/.buildozer || true
 
     # =========================
-    # 5. FORCE SDK INSTALL (WITH LICENSE FIX)
+    # 6. PRE-SETUP SDK AND TOOLS
     # =========================
-    - name: Build APK (first pass - setup SDK)
+    - name: Pre-setup Android SDK
       continue-on-error: true
       run: |
         yes | buildozer android update || true
 
     # =========================
-    # 6. PATCH LIBTOOL ISSUE (FIX LT_SYS_SYMBOL_USCORE)
+    # 7. BUILD APK WITH PROPER ENVIRONMENT
     # =========================
-    - name: Fix libtool/autotools issue
+    - name: Build APK
       run: |
-        sudo apt install -y libtool-bin
-
-        export AUTOMAKE="automake"
-        export ACLOCAL="aclocal"
-        export AUTOCONF="autoconf"
-
-        echo "libtool patch applied"
-
-    # =========================
-    # 7. FINAL BUILD
-    # =========================
-    - name: Build APK (final)
-      run: |
+        export ACLOCAL_PATH="/usr/share/aclocal:$ACLOCAL_PATH"
+        export LDFLAGS="-L/usr/lib/x86_64-linux-gnu"
+        export CPPFLAGS="-I/usr/include"
+        export LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+        
         buildozer -v android debug
 
     # =========================
-    # 8. FIND APK
+    # 8. FIND AND VERIFY APK
     # =========================
     - name: Locate APK
       run: |
-        find . -name "*.apk" || true
+        find . -name "*.apk" -type f
+        ls -lah bin/ || true
 
     # =========================
-    # 9. UPLOAD APK
+    # 9. UPLOAD APK AS ARTIFACT
     # =========================
     - name: Upload APK
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: apk
-        path: "**/*.apk"
+        path: bin/*.apk
+        retention-days: 30
