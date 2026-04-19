@@ -12,19 +12,17 @@ jobs:
     # =========================
     # 1. GET CODE
     # =========================
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
 
     # =========================
     # 2. SYSTEM DEPENDENCIES
     # =========================
-    - name: Install dependencies
+    - name: Install system packages
       run: |
         sudo apt update
         sudo apt install -y \
-          git \
-          zip \
-          unzip \
+          git zip unzip \
           openjdk-17-jdk \
           python3-pip \
           build-essential \
@@ -36,28 +34,27 @@ jobs:
         pip install buildozer cython virtualenv
 
     # =========================
-    # 3. FORCE ANDROID LICENSE ACCEPTANCE (IMPORTANT FIX)
+    # 3. ANDROID LICENSE FIX (CRITICAL)
     # =========================
-    - name: Accept Android licenses
+    - name: Fix Android SDK licenses
       run: |
         mkdir -p $HOME/.android
         touch $HOME/.android/repositories.cfg
 
+        # force accept all licenses
         yes | sdkmanager --licenses || true
 
     # =========================
-    # 4. CLEAN OLD CACHE
+    # 4. CLEAN BUILD ENV
     # =========================
     - name: Clean build cache
       run: |
         rm -rf .buildozer
 
     # =========================
-    # 5. BUILD APK
+    # 5. FORCE BUILD
     # =========================
     - name: Build APK
-      env:
-        ANDROIDSDK: $HOME/.buildozer/android/platform/android-sdk
       run: |
         buildozer -v android debug
 
