@@ -18,35 +18,37 @@ jobs:
     # =========================
     # 2. SYSTEM DEPENDENCIES
     # =========================
-    - name: Install system dependencies
+    - name: Install dependencies
       run: |
         sudo apt update
         sudo apt install -y \
-          python3-pip \
           git \
           zip \
           unzip \
           openjdk-17-jdk \
+          python3-pip \
           build-essential \
           autoconf \
           libtool \
           pkg-config
 
-        python3 -m pip install --upgrade pip
+        pip install --upgrade pip
         pip install buildozer cython virtualenv
 
     # =========================
-    # 3. FIX ANDROID ENV (SAFE ONLY)
+    # 3. FORCE ANDROID LICENSE ACCEPTANCE (IMPORTANT FIX)
     # =========================
-    - name: Android environment fix
+    - name: Accept Android licenses
       run: |
         mkdir -p $HOME/.android
         touch $HOME/.android/repositories.cfg
 
+        yes | sdkmanager --licenses || true
+
     # =========================
-    # 4. CLEAN OLD BUILD CACHE (IMPORTANT)
+    # 4. CLEAN OLD CACHE
     # =========================
-    - name: Clean Buildozer cache
+    - name: Clean build cache
       run: |
         rm -rf .buildozer
 
@@ -54,13 +56,15 @@ jobs:
     # 5. BUILD APK
     # =========================
     - name: Build APK
+      env:
+        ANDROIDSDK: $HOME/.buildozer/android/platform/android-sdk
       run: |
         buildozer -v android debug
 
     # =========================
     # 6. FIND APK
     # =========================
-    - name: Find APK
+    - name: Locate APK
       run: |
         find . -name "*.apk"
 
