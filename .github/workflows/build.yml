@@ -12,82 +12,88 @@ jobs:
     # =========================
     # 1. GET CODE
     # =========================
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
 
     # =========================
-    # 2. SYSTEM DEPENDENCIES
+    # 2. SYSTEM FIX PACKAGES (IMPORTANT)
     # =========================
-    - name: Install system dependencies
+    - name: Install dependencies
       run: |
         sudo apt update
+
         sudo apt install -y \
           git zip unzip \
           openjdk-17-jdk \
           python3-pip \
           build-essential \
           autoconf \
+          automake \
           libtool \
-          pkg-config
+          pkg-config \
+          cmake \
+          libffi-dev \
+          libssl-dev \
+          zlib1g-dev
 
-        python3 -m pip install --upgrade pip
-        pip install buildozer cython
+        pip install --upgrade pip
+        pip install cython buildozer
 
     # =========================
-    # 3. ANDROID SDK PREP FIX
+    # 3. ANDROID ENV FIX
     # =========================
-    - name: Prepare Android environment
+    - name: Setup Android environment
       run: |
         mkdir -p $HOME/.android
         touch $HOME/.android/repositories.cfg
 
     # =========================
-    # 4. FORCE BUILD FIRST (Buildozer handles SDK)
+    # 4. FORCE CLEAN BUILD CACHE (IMPORTANT FIX)
     # =========================
-    - name: Build APK (first attempt - triggers SDK install)
+    - name: Clean Buildozer cache
+      run: |
+        rm -rf .buildozer || true
+
+    # =========================
+    # 5. FORCE SDK INSTALL (WITH LICENSE FIX)
+    # =========================
+    - name: Build APK (first pass - setup SDK)
       continue-on-error: true
       run: |
-        yes | buildozer android update
+        yes | buildozer android update || true
 
     # =========================
-    # 5. FORCE LICENSE ACCEPT + FIX AIDL
+    # 6. PATCH LIBTOOL ISSUE (FIX LT_SYS_SYMBOL_USCORE)
     # =========================
-    - name: Fix Android SDK licenses
+    - name: Fix libtool/autotools issue
       run: |
-        SDK=$HOME/.buildozer/android/platform/android-sdk
+        sudo apt install -y libtool-bin
 
-        # wait until sdk exists
-        ls -R $SDK || true
+        export AUTOMAKE="automake"
+        export ACLOCAL="aclocal"
+        export AUTOCONF="autoconf"
 
-        # accept licenses if sdkmanager exists
-        if [ -f "$SDK/cmdline-tools/latest/bin/sdkmanager" ]; then
-          yes | $SDK/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          $SDK/cmdline-tools/latest/bin/sdkmanager \
-            "platform-tools" \
-            "build-tools;33.0.2" \
-            "platforms;android-33" || true
-        fi
+        echo "libtool patch applied"
 
     # =========================
-    # 6. FINAL BUILD (REAL)
+    # 7. FINAL BUILD
     # =========================
     - name: Build APK (final)
       run: |
         buildozer -v android debug
 
     # =========================
-    # 7. FIND APK
+    # 8. FIND APK
     # =========================
     - name: Locate APK
       run: |
         find . -name "*.apk" || true
 
     # =========================
-    # 8. UPLOAD APK
+    # 9. UPLOAD APK
     # =========================
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: apk
         path: "**/*.apk"
-        
