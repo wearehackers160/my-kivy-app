@@ -9,13 +9,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    - name: Checkout repo
       uses: actions/checkout@v4
 
-    # =========================
-    # SYSTEM DEPENDENCIES
-    # =========================
-    - name: Install dependencies
+    - name: Install system dependencies
       run: |
         sudo apt update
         sudo apt install -y \
@@ -23,82 +20,46 @@ jobs:
           openjdk-17-jdk \
           python3-pip \
           build-essential \
-          autoconf automake libtool \
-          pkg-config
+          autoconf automake libtool pkg-config
 
         pip install --upgrade pip
-        pip install cython==0.29.36 buildozer==1.5.0
+        pip install buildozer cython virtualenv
 
-    # =========================
-    # FORCE ANDROID LICENSE ACCEPT
-    # =========================
-    - name: Install Android SDK tools
+    - name: Setup Android SDK (FIXED)
       run: |
-        mkdir -p $HOME/.android
-        touch $HOME/.android/repositories.cfg
+        set -e
 
-        mkdir -p $HOME/android-sdk/cmdline-tools
-        cd $HOME/android-sdk/cmdline-tools
+        export ANDROID_SDK_ROOT=$HOME/android-sdk
+
+        mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+        cd $ANDROID_SDK_ROOT/cmdline-tools
 
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
         unzip -q commandlinetools-linux-11076708_latest.zip
-        rm commandlinetools-linux-11076708_latest.zip
 
-        mv cmdline-tools latest || true
+        mv cmdline-tools latest
 
-        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+        export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools
 
-    # =========================
-    # ACCEPT LICENSES (IMPORTANT FIX)
-    # =========================
-    - name: Accept Android licenses + install build-tools
-      run: |
-        yes | sdkmanager --licenses || true
+        # IMPORTANT: auto accept ALL licenses
+        yes | sdkmanager --licenses
 
-        sdkmanager \
+        # Install stable build tools (NOT 37)
+        sdkmanager --sdk_root=$ANDROID_SDK_ROOT \
           "platform-tools" \
           "platforms;android-33" \
-          "build-tools;33.0.2"
+          "build-tools;33.0.2" \
+          "ndk;25.2.9519653"
 
-    # =========================
-    # BUILD FOLDER FIX
-    # =========================
-    - name: Prepare Buildozer environment
-      run: |
-        mkdir -p ~/.buildozer
-        mkdir -p ~/.android
-        touch ~/.android/repositories.cfg
-
-    # =========================
-    # CACHE
-    # =========================
-    - name: Cache build
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.buildozer
-          ~/.gradle
-        key: build-${{ runner.os }}
-
-    # =========================
-    # BUILD APK
-    # =========================
     - name: Build APK
       run: |
+        export ANDROID_SDK_ROOT=$HOME/android-sdk
+        export PATH=$PATH:$ANDROID_SDK_ROOT/platform-tools
+
         buildozer -v android debug
 
-    # =========================
-    # FIND APK
-    # =========================
-    - name: Find APK
-      run: find . -name "*.apk"
-
-    # =========================
-    # UPLOAD APK
-    # =========================
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: apk
-        path: "**/*.apk"
+        path: bin/*.apk
