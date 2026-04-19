@@ -10,15 +10,15 @@ jobs:
 
     steps:
     # =========================
-    # 1. GET CODE
+    # GET CODE
     # =========================
-    - name: Checkout repository
+    - name: Checkout repo
       uses: actions/checkout@v4
 
     # =========================
-    # 2. SYSTEM FIX (IMPORTANT)
+    # SYSTEM PACKAGES (FIX ALL NATIVE ERRORS)
     # =========================
-    - name: Install ALL dependencies (FIX AUTOCONF ERROR)
+    - name: Install dependencies
       run: |
         sudo apt update
         sudo apt install -y \
@@ -32,49 +32,44 @@ jobs:
           pkg-config \
           m4 \
           cmake \
-          libffi-dev
+          libffi-dev \
+          libssl-dev
 
         pip install --upgrade pip
-        pip install cython buildozer
+        pip install cython buildozer virtualenv
 
     # =========================
-    # 3. CLEAN ANDROID SETUP
+    # CLEAN BUILD FOLDER (VERY IMPORTANT)
     # =========================
-    - name: Android environment setup
+    - name: Clean Buildozer cache
       run: |
+        rm -rf .buildozer || true
         mkdir -p $HOME/.android
         touch $HOME/.android/repositories.cfg
 
     # =========================
-    # 4. FORCE SDK FIX
+    # FORCE FIRST BUILD (LET IT INSTALL SDK PROPERLY)
     # =========================
-    - name: Pre-build SDK install (fix AIDL + build-tools)
+    - name: First Build (SDK setup)
       run: |
         yes | buildozer android update || true
 
     # =========================
-    # 5. FORCE CLEAN BUILD (IMPORTANT FIX)
-    # =========================
-    - name: Clean build
-      run: |
-        buildozer android clean || true
-
-    # =========================
-    # 6. FINAL BUILD
+    # FINAL BUILD (REAL APK)
     # =========================
     - name: Build APK
       run: |
         buildozer -v android debug
 
     # =========================
-    # 7. FIND APK
+    # FIND APK
     # =========================
     - name: Find APK
       run: |
-        find . -name "*.apk" || true
+        find . -name "*.apk"
 
     # =========================
-    # 8. UPLOAD APK
+    # UPLOAD APK
     # =========================
     - name: Upload APK
       uses: actions/upload-artifact@v4
