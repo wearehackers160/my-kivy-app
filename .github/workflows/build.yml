@@ -9,14 +9,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # =========================
-    # GET CODE
-    # =========================
-    - name: Checkout repo
+    - name: Checkout code
       uses: actions/checkout@v4
 
     # =========================
-    # SYSTEM PACKAGES (FIX ALL NATIVE ERRORS)
+    # SYSTEM DEPENDENCIES (FIXED)
     # =========================
     - name: Install dependencies
       run: |
@@ -30,32 +27,36 @@ jobs:
           automake \
           libtool \
           pkg-config \
-          m4 \
           cmake \
           libffi-dev \
           libssl-dev
 
-        pip install --upgrade pip
-        pip install cython buildozer virtualenv
+        python3 -m pip install --upgrade pip
+        pip install cython==0.29.36
+        pip install buildozer==1.5.0
 
     # =========================
-    # CLEAN BUILD FOLDER (VERY IMPORTANT)
+    # FIX ANDROID ENV (NO MANUAL SDK)
     # =========================
-    - name: Clean Buildozer cache
+    - name: Setup Buildozer folders
       run: |
-        rm -rf .buildozer || true
         mkdir -p $HOME/.android
         touch $HOME/.android/repositories.cfg
+        mkdir -p $HOME/.buildozer
 
     # =========================
-    # FORCE FIRST BUILD (LET IT INSTALL SDK PROPERLY)
+    # CACHE (SPEED + STABILITY)
     # =========================
-    - name: First Build (SDK setup)
-      run: |
-        yes | buildozer android update || true
+    - name: Cache Buildozer
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.buildozer
+          ~/.gradle
+        key: buildozer-${{ runner.os }}
 
     # =========================
-    # FINAL BUILD (REAL APK)
+    # BUILD APK
     # =========================
     - name: Build APK
       run: |
@@ -65,8 +66,7 @@ jobs:
     # FIND APK
     # =========================
     - name: Find APK
-      run: |
-        find . -name "*.apk"
+      run: find . -name "*.apk"
 
     # =========================
     # UPLOAD APK
