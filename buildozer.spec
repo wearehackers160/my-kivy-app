@@ -14,7 +14,6 @@ requirements = python3,kivy
 orientation = portrait
 fullscreen = 1
 
-# Android settings (KEEP SIMPLE)
 android.api = 33
 android.minapi = 21
 
