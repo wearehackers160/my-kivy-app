@@ -10,9 +10,6 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      # =========================
-      # GET CODE
-      # =========================
       - name: Checkout repo
         uses: actions/checkout@v4
 
@@ -25,7 +22,7 @@ jobs:
           python-version: "3.10"
 
       # =========================
-      # JAVA 17 (CRITICAL FIX)
+      # JAVA 17 (REQUIRED)
       # =========================
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -36,7 +33,7 @@ jobs:
       # =========================
       # SYSTEM DEPENDENCIES
       # =========================
-      - name: Install system dependencies
+      - name: Install dependencies
         run: |
           sudo apt update
           sudo apt install -y \
@@ -53,44 +50,7 @@ jobs:
           pip install buildozer cython
 
       # =========================
-      # ANDROID SDK (FIXED)
-      # =========================
-      - name: Install Android SDK
-        run: |
-          export JAVA_HOME=$JAVA_HOME_17_X64
-          export PATH=$JAVA_HOME/bin:$PATH
-
-          mkdir -p $HOME/android-sdk
-          cd $HOME/android-sdk
-
-          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip commandlinetools-linux-11076708_latest.zip
-
-          mkdir -p cmdline-tools/latest
-          mv cmdline-tools/* cmdline-tools/latest/ 2>/dev/null || true
-
-          echo "export ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "export PATH=$PATH:$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_ENV
-
-      # =========================
-      # ACCEPT LICENSES
-      # =========================
-      - name: Accept Android licenses
-        run: |
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
-
-      # =========================
-      # INSTALL SDK PACKAGES
-      # =========================
-      - name: Install Android packages
-        run: |
-          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager \
-            "platform-tools" \
-            "platforms;android-33" \
-            "build-tools;33.0.2"
-
-      # =========================
-      # BUILD APK
+      # CLEAN BUILD (NO SDKMANAGER!)
       # =========================
       - name: Build APK
         run: |
