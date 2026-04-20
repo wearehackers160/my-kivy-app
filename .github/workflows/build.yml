@@ -12,37 +12,76 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # =========================
+      # PYTHON
+      # =========================
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - name: Install dependencies
+      # =========================
+      # SYSTEM DEPENDENCIES
+      # =========================
+      - name: Install system deps
         run: |
           sudo apt update
-          sudo apt install -y \
-            git zip unzip openjdk-17-jdk \
-            build-essential autoconf libtool pkg-config \
-            zlib1g-dev libncurses5-dev libffi-dev libssl-dev
+          sudo apt install -y git zip unzip openjdk-17-jdk \
+          build-essential autoconf libtool pkg-config \
+          zlib1g-dev libncurses5-dev libffi-dev libssl-dev wget
 
-      - name: Install Python packages
+      # =========================
+      # INSTALL BUILD TOOLS
+      # =========================
+      - name: Install Python tools
         run: |
           pip install --upgrade pip
           pip install buildozer cython
 
-      # 🔥 THIS FIXES YOUR ERROR
-      - name: Accept Android licenses
+      # =========================
+      # INSTALL ANDROID SDK (FIX)
+      # =========================
+      - name: Install Android SDK
         run: |
-          yes | sdkmanager --licenses || true
+          mkdir -p $HOME/android-sdk
+          cd $HOME/android-sdk
 
-      - name: Install Android Build Tools (FIX VERSION)
+          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip commandlinetools-linux-11076708_latest.zip
+
+          mkdir -p cmdline-tools/latest
+          mv cmdline-tools/* cmdline-tools/latest/ 2>/dev/null || true
+
+          echo "export ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "export PATH=$PATH:$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_ENV
+
+      # =========================
+      # ACCEPT LICENSES
+      # =========================
+      - name: Accept licenses
         run: |
-          sdkmanager "build-tools;33.0.2" "platforms;android-33"
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
+      # =========================
+      # INSTALL SDK PACKAGES
+      # =========================
+      - name: Install SDK packages
+        run: |
+          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager \
+          "platform-tools" \
+          "platforms;android-33" \
+          "build-tools;33.0.2"
+
+      # =========================
+      # BUILD APK
+      # =========================
       - name: Build APK
         run: |
           buildozer android debug
 
+      # =========================
+      # UPLOAD APK
+      # =========================
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
