@@ -2,49 +2,46 @@ name: Build Kivy Android APK
 
 on:
   push:
-  workflow_dispatch:
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-22.04
 
     steps:
-    # =========================
-    # CHECKOUT
-    # =========================
-    - name: Checkout code
+    - name: Checkout repo
       uses: actions/checkout@v4
 
     # =========================
-    # JAVA 17 (REQUIRED)
+    # PYTHON
     # =========================
-    - name: Setup Java
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.10
+
+    # =========================
+    # JAVA (IMPORTANT)
+    # =========================
+    - name: Set up Java
       uses: actions/setup-java@v4
       with:
         distribution: temurin
         java-version: 17
 
     # =========================
-    # PYTHON (FIX VERSION)
+    # INSTALL DEPENDENCIES
     # =========================
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.10"
-
-    # =========================
-    # INSTALL SYSTEM DEPENDENCIES
-    # =========================
-    - name: Install dependencies
+    - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install -y git zip unzip \
-        autoconf libtool pkg-config zlib1g-dev \
-        libncurses5-dev libncursesw5-dev libtinfo5 \
-        cmake libffi-dev libssl-dev build-essential
+        sudo apt install -y zip unzip openjdk-17-jdk \
+        python3-pip autoconf libtool pkg-config zlib1g-dev \
+        libncurses5-dev libncursesw5-dev libtinfo5 cmake \
+        libffi-dev libssl-dev git wget
 
     # =========================
-    # INSTALL PYTHON TOOLS
+    # INSTALL BUILDOZER
     # =========================
     - name: Install Buildozer
       run: |
@@ -52,47 +49,42 @@ jobs:
         pip install buildozer cython
 
     # =========================
-    # ANDROID SDK SETUP (FIXED)
+    # SETUP ANDROID SDK
     # =========================
     - name: Setup Android SDK
       run: |
         mkdir -p $HOME/android-sdk/cmdline-tools
-        cd $HOME/android-sdk
+        cd $HOME/android-sdk/cmdline-tools
 
-        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-        unzip commandlinetools-linux-*.zip
+        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
+        unzip tools.zip
+        rm tools.zip
 
-        # FIX FOLDER STRUCTURE
-        mv cmdline-tools cmdline-tools-temp
-        mkdir -p cmdline-tools/latest
-        mv cmdline-tools-temp/* cmdline-tools/latest/
-        rm -rf cmdline-tools-temp
+        mv cmdline-tools latest
 
-        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+        export ANDROID_HOME=$HOME/android-sdk
+        export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
 
-        # ACCEPT LICENSES
-        yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
+        yes | sdkmanager --licenses
 
-        # INSTALL REQUIRED SDK PARTS
-        $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager \
-          "platform-tools" \
-          "platforms;android-33" \
-          "build-tools;33.0.2"
+        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
     # =========================
-    # CLEAR CACHE (IMPORTANT)
+    # LINK SDK (CRITICAL FIX)
     # =========================
-    - name: Clear buildozer cache
-      run: rm -rf ~/.buildozer
+    - name: Link SDK for Buildozer
+      run: |
+        mkdir -p ~/.buildozer/android/platform
+        ln -sf $HOME/android-sdk ~/.buildozer/android/platform/android-sdk
+
+    # ❌ DO NOT DELETE SDK AFTER LINKING
 
     # =========================
     # BUILD APK
     # =========================
     - name: Build APK
       run: |
-        buildozer -v android debug
+        buildozer android debug
 
     # =========================
     # UPLOAD APK
@@ -100,5 +92,5 @@ jobs:
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: kivy-apk
+        name: apk
         path: bin/*.apk
