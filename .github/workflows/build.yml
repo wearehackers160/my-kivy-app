@@ -9,6 +9,9 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+    # =========================
+    # CHECKOUT
+    # =========================
     - name: Checkout repo
       uses: actions/checkout@v4
 
@@ -20,17 +23,20 @@ jobs:
       with:
         python-version: "3.10"
 
+    - name: Debug Python
+      run: python --version
+
     # =========================
-    # JAVA (IMPORTANT)
+    # JAVA (REQUIRED)
     # =========================
     - name: Set up Java
       uses: actions/setup-java@v4
       with:
         distribution: temurin
-        java-version: 17
+        java-version: "17"
 
     # =========================
-    # INSTALL DEPENDENCIES
+    # SYSTEM DEPENDENCIES
     # =========================
     - name: Install system dependencies
       run: |
@@ -49,7 +55,7 @@ jobs:
         pip install buildozer cython
 
     # =========================
-    # SETUP ANDROID SDK
+    # SETUP ANDROID SDK (FIXED)
     # =========================
     - name: Setup Android SDK
       run: |
@@ -62,6 +68,10 @@ jobs:
 
         mv cmdline-tools latest
 
+        # 🔥 FIX: create old sdkmanager path for buildozer
+        mkdir -p $HOME/android-sdk/tools/bin
+        ln -s $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager $HOME/android-sdk/tools/bin/sdkmanager
+
         export ANDROID_HOME=$HOME/android-sdk
         export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
 
@@ -70,14 +80,12 @@ jobs:
         sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
     # =========================
-    # LINK SDK (CRITICAL FIX)
+    # LINK SDK TO BUILDOZER
     # =========================
     - name: Link SDK for Buildozer
       run: |
         mkdir -p ~/.buildozer/android/platform
         ln -sf $HOME/android-sdk ~/.buildozer/android/platform/android-sdk
-
-    # ❌ DO NOT DELETE SDK AFTER LINKING
 
     # =========================
     # BUILD APK
@@ -92,5 +100,5 @@ jobs:
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: apk
+        name: kivy-apk
         path: bin/*.apk
