@@ -10,7 +10,7 @@ source.include_exts = py,png,jpg,kv,mp3,ogg,wav,atlas
 version = 0.1
 
 # IMPORTANT: pin versions for compatibility
-requirements = python3==3.10.11,kivy==2.3.0
+requirements = python3,kivy==2.0.0,kivymd,pillow
 
 orientation = portrait
 fullscreen = 0
