@@ -1,4 +1,4 @@
-name: Build Kivy Android APK
+name: Build Kivy APK (Stable Fix)
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
 
     steps:
     # =========================
-    # CHECKOUT
+    # CLEAN START
     # =========================
     - name: Checkout repo
       uses: actions/checkout@v4
@@ -44,6 +44,14 @@ jobs:
         libffi-dev libssl-dev wget
 
     # =========================
+    # CLEAN EVERYTHING (IMPORTANT)
+    # =========================
+    - name: Clean environment
+      run: |
+        rm -rf ~/.buildozer
+        rm -rf ~/.android
+
+    # =========================
     # INSTALL BUILDOZER
     # =========================
     - name: Install Buildozer
@@ -52,53 +60,11 @@ jobs:
         pip install buildozer cython
 
     # =========================
-    # ANDROID SDK (FIXED STRUCTURE)
-    # =========================
-    - name: Setup Android SDK
-      run: |
-        mkdir -p $HOME/android-sdk
-
-        cd $HOME/android-sdk
-        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O sdk.zip
-        unzip sdk.zip
-        rm sdk.zip
-
-        # FIX STRUCTURE FOR BUILDOZER (IMPORTANT)
-        mkdir -p cmdline-tools/latest
-        mv cmdline-tools/* cmdline-tools/latest/ || true
-
-        # CRITICAL: create OLD PATH for buildozer
-        mkdir -p tools/bin
-        ln -sf $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager tools/bin/sdkmanager
-
-        export ANDROID_HOME=$HOME/android-sdk
-        export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
-
-        yes | sdkmanager --licenses
-
-        sdkmanager "platform-tools" \
-                   "platforms;android-33" \
-                   "build-tools;33.0.2"
-
-    # =========================
-    # LINK SDK FOR BUILDOZER
-    # =========================
-    - name: Link SDK
-      run: |
-        mkdir -p ~/.buildozer/android/platform
-        ln -sf $HOME/android-sdk ~/.buildozer/android/platform/android-sdk
-
-    # =========================
-    # CLEAN CACHE
-    # =========================
-    - name: Clean buildozer
-      run: rm -rf .buildozer
-
-    # =========================
-    # BUILD APK
+    # BUILD (LET BUILDOZER HANDLE ANDROID ITSELF)
     # =========================
     - name: Build APK
-      run: buildozer android debug
+      run: |
+        buildozer android debug
 
     # =========================
     # UPLOAD APK
