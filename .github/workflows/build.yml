@@ -18,27 +18,24 @@ jobs:
     # =========================
     # PYTHON
     # =========================
-    - name: Set up Python
+    - name: Setup Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.10"
 
-    - name: Show Python version
-      run: python --version
-
     # =========================
     # JAVA
     # =========================
-    - name: Set up Java
+    - name: Setup Java
       uses: actions/setup-java@v4
       with:
         distribution: temurin
         java-version: "17"
 
     # =========================
-    # SYSTEM DEPENDENCIES
+    # SYSTEM PACKAGES
     # =========================
-    - name: Install system packages
+    - name: Install dependencies
       run: |
         sudo apt update
         sudo apt install -y git zip unzip openjdk-17-jdk \
@@ -55,20 +52,24 @@ jobs:
         pip install buildozer cython
 
     # =========================
-    # ANDROID SDK (FIXED PROPERLY)
+    # ANDROID SDK (FIXED STRUCTURE)
     # =========================
     - name: Setup Android SDK
       run: |
-        mkdir -p $HOME/android-sdk/cmdline-tools
+        mkdir -p $HOME/android-sdk
 
         cd $HOME/android-sdk
         wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O sdk.zip
         unzip sdk.zip
         rm sdk.zip
 
-        mv cmdline-tools cmdline-tools-temp
+        # FIX STRUCTURE FOR BUILDOZER (IMPORTANT)
         mkdir -p cmdline-tools/latest
-        mv cmdline-tools-temp/* cmdline-tools/latest/
+        mv cmdline-tools/* cmdline-tools/latest/ || true
+
+        # CRITICAL: create OLD PATH for buildozer
+        mkdir -p tools/bin
+        ln -sf $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager tools/bin/sdkmanager
 
         export ANDROID_HOME=$HOME/android-sdk
         export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
@@ -80,17 +81,17 @@ jobs:
                    "build-tools;33.0.2"
 
     # =========================
-    # FIX BUILDOZER SDK PATH
+    # LINK SDK FOR BUILDOZER
     # =========================
-    - name: Link SDK for Buildozer
+    - name: Link SDK
       run: |
         mkdir -p ~/.buildozer/android/platform
         ln -sf $HOME/android-sdk ~/.buildozer/android/platform/android-sdk
 
     # =========================
-    # CLEAR CACHE (IMPORTANT)
+    # CLEAN CACHE
     # =========================
-    - name: Clean buildozer cache
+    - name: Clean buildozer
       run: rm -rf .buildozer
 
     # =========================
