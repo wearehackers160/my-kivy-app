@@ -10,7 +10,11 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v4
+      # =========================
+      # GET CODE
+      # =========================
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       # =========================
       # PYTHON
@@ -21,28 +25,41 @@ jobs:
           python-version: "3.10"
 
       # =========================
-      # SYSTEM DEPENDENCIES
+      # JAVA 17 (CRITICAL FIX)
       # =========================
-      - name: Install system deps
-        run: |
-          sudo apt update
-          sudo apt install -y git zip unzip openjdk-17-jdk \
-          build-essential autoconf libtool pkg-config \
-          zlib1g-dev libncurses5-dev libffi-dev libssl-dev wget
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
 
       # =========================
-      # INSTALL BUILD TOOLS
+      # SYSTEM DEPENDENCIES
       # =========================
-      - name: Install Python tools
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            git zip unzip wget \
+            build-essential autoconf libtool pkg-config \
+            zlib1g-dev libncurses5-dev libffi-dev libssl-dev
+
+      # =========================
+      # PYTHON PACKAGES
+      # =========================
+      - name: Install Buildozer
         run: |
           pip install --upgrade pip
           pip install buildozer cython
 
       # =========================
-      # INSTALL ANDROID SDK (FIX)
+      # ANDROID SDK (FIXED)
       # =========================
       - name: Install Android SDK
         run: |
+          export JAVA_HOME=$JAVA_HOME_17_X64
+          export PATH=$JAVA_HOME/bin:$PATH
+
           mkdir -p $HOME/android-sdk
           cd $HOME/android-sdk
 
@@ -58,19 +75,19 @@ jobs:
       # =========================
       # ACCEPT LICENSES
       # =========================
-      - name: Accept licenses
+      - name: Accept Android licenses
         run: |
           yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       # =========================
       # INSTALL SDK PACKAGES
       # =========================
-      - name: Install SDK packages
+      - name: Install Android packages
         run: |
           $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager \
-          "platform-tools" \
-          "platforms;android-33" \
-          "build-tools;33.0.2"
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;33.0.2"
 
       # =========================
       # BUILD APK
